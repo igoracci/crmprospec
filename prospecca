@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Gestão & CRM - Dashboard Completo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .status-badge { transition: all 0.2s ease; cursor: pointer; user-select: none; }
+    .status-badge:hover { filter: brightness(0.95); transform: scale(1.02); }
+    .star-btn { cursor: pointer; transition: transform 0.15s ease; user-select: none; }
+    .star-btn:hover { transform: scale(1.2); }
+    .cell-input { background: transparent; border: 1.5px solid transparent; border-radius: 6px; padding: 3px 6px; transition: all 0.2s ease; width: 100%; }
+    .cell-input:hover { background: #f8fafc; border-color: #cbd5e1; }
+    .cell-input:focus { background: #ffffff; border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15); }
+    .draggable-header { cursor: grab; }
+    .draggable-header:active { cursor: grabbing; }
+    .drag-over-target { border-left: 2px solid #2563eb !important; background-color: #eff6ff !important; }
+    .drag-over-group { outline: 2px dashed #2563eb !important; outline-offset: -2px; }
+    .resizer { position: absolute; right: 0; top: 0; height: 100%; width: 4px; cursor: col-resize; user-select: none; touch-action: none; transition: background-color 0.2s ease; z-index: 10; }
+    .resizer:hover, .resizing { background: #3b82f6; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-500 selection:text-white" onclick="closeStatusPopover(); closeColIconDropdown();">
+
+  <header class="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shadow-xs">
+    <div class="flex items-center gap-3">
+      <div class="bg-blue-600 text-white p-2 rounded-xl shadow-sm flex items-center justify-center">
+        <i data-lucide="sliders" class="w-4 h-4"></i>
+      </div>
+      <div>
+        <h1 id="header-project-title" onclick="editProjectNameInline(event, state.activeProjectId)" title="Clique para editar" class="text-base font-bold text-slate-900 tracking-tight cursor-pointer hover:bg-slate-100 px-1.5 py-0.5 rounded-lg border border-transparent hover:border-slate-300 transition-all">Panorama do Projeto</h1>
+        <p class="text-[11px] text-slate-500">CRM & Funil de Vendas Inteligente</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="openGlobalReports()" class="px-3.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs">
+        <i data-lucide="pie-chart" class="w-3.5 h-3.5"></i> Dashboard & Funil
+      </button>
+      <button onclick="openModal('modal-automations')" class="px-3.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300/80 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs">
+        <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-600 fill-amber-500"></i> Automações
+      </button>
+      <button onclick="openModal('modal-settings')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium flex items-center gap-1.5 transition-all">
+        <i data-lucide="settings" class="w-3.5 h-3.5 text-blue-600"></i> Configurar
+      </button>
+    </div>
+  </header>
+
+  <div class="flex-1 flex overflow-hidden">
+    <main class="flex-1 p-6 overflow-y-auto space-y-6">
+      <div class="flex flex-wrap justify-between items-center gap-4 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div class="flex items-center gap-2">
+          <button onclick="openModal('modal-group')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all">
+            <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i> + Nova Pasta
+          </button>
+          <button onclick="addNewTaskInline()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> + Nova Atividade
+          </button>
+          <button onclick="openGlobalReports()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-xs animate-pulse">
+            <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i> Ver Números & Funil
+          </button>
+        </div>
+      </div>
+
+      <div id="automation-toast" class="hidden bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2 text-xs transition-all">
+        <i data-lucide="zap" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+        <span id="automation-toast-text">Ação executada!</span>
+      </div>
+
+      <div id="board-groups-container" class="space-y-6"></div>
+      <button onclick="openModal('modal-group')" class="w-full py-3 border border-dashed border-slate-300 hover:border-blue-400 rounded-2xl text-slate-500 hover:text-blue-600 text-xs font-semibold transition-all flex justify-center items-center gap-2 bg-white/40">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Adicionar Nova Pasta
+      </button>
+    </main>
+
+    <aside class="w-72 bg-white border-l border-slate-200 flex flex-col shadow-xs z-10">
+      <div class="p-3.5 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+        <div class="flex items-center gap-2">
+          <i data-lucide="folder-tree" class="w-4 h-4 text-blue-600"></i>
+          <h2 class="font-bold text-xs text-slate-800">Meus Projetos & Pastas</h2>
+        </div>
+        <button onclick="openModal('modal-project')" title="Criar Novo Projeto" class="p-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+      </div>
+      <div id="sidebar-projects-list" class="flex-1 p-3 overflow-y-auto space-y-3"></div>
+    </aside>
+  </div>
+
+  <div id="floating-status-menu" onclick="event.stopPropagation()" class="fixed hidden z-[9999] bg-white border border-slate-200 rounded-2xl shadow-xl p-2 min-w-[160px] space-y-1 transition-all"></div>
+
+  <!-- MODAL DE DASHBOARD GLOBAL -->
+  <div id="modal-global-reports" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-5xl w-full p-6 space-y-5 shadow-2xl border border-slate-200 max-h-[95vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
+        <div>
+          <h3 class="font-bold text-xl text-slate-900 flex items-center gap-2">
+            <i data-lucide="pie-chart" class="w-6 h-6 text-indigo-600"></i> Dashboard Analítico & Funil
+          </h3>
+          <p class="text-xs text-slate-500 mt-0.5">Analise os números totais (à esquerda) e veja a taxa de conversão no funil visual (à direita).</p>
+        </div>
+        <button onclick="closeModal('modal-global-reports')" class="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto space-y-6 pr-2">
+        <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-wrap gap-4 items-end shadow-sm">
+          <div class="flex-1 min-w-[180px]">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Filtrar Baseado na Data:</label>
+            <select id="report-filter-date-col" onchange="triggerReportRender()" class="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs font-semibold text-slate-700"></select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Período (Início até Fim):</label>
+            <div class="flex items-center gap-2">
+              <input type="date" id="report-filter-start" onchange="triggerReportRender()" class="border border-slate-300 rounded-lg p-2 bg-white text-xs font-medium text-slate-700">
+              <span class="text-slate-400 font-bold text-sm">-</span>
+              <input type="date" id="report-filter-end" onchange="triggerReportRender()" class="border border-slate-300 rounded-lg p-2 bg-white text-xs font-medium text-slate-700">
+            </div>
+          </div>
+          <button onclick="clearReportFilters()" class="p-2 bg-white border border-slate-300 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-lg" title="Limpar Filtros"><i data-lucide="filter-x" class="w-4 h-4"></i></button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div class="space-y-3">
+            <h4 class="text-sm font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="layout-grid" class="w-4 h-4 text-indigo-500"></i> Métricas em Bloco</h4>
+            <div id="global-metrics-container" class="grid grid-cols-2 gap-3"></div>
+          </div>
+
+          <div class="space-y-3">
+            <h4 class="text-sm font-bold text-slate-800 flex items-center gap-1.5"><i data-lucide="filter" class="w-4 h-4 text-indigo-500"></i> Funil de Vendas Visual (% do Total)</h4>
+            <div class="bg-slate-50 border border-slate-200 rounded-3xl p-6 shadow-inner relative overflow-hidden flex flex-col items-center min-h-[300px] justify-center">
+              <div id="funnel-visualization-container" class="flex flex-col items-center w-full relative z-10 max-w-sm mx-auto"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-200 pt-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <i data-lucide="settings-2" class="w-4 h-4 text-indigo-600"></i> Criar Nova Métrica Global / Etapa do Funil
+            </h4>
+          </div>
+          
+          <form onsubmit="handleAddGlobalMetric(event)" class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex flex-wrap gap-3 items-end text-xs transition-colors" id="metric-form-container">
+            <input type="hidden" id="editing-metric-id" value="">
+            <div class="flex-1 min-w-[120px]">
+              <label class="block font-semibold text-slate-700 mb-1">Verbo (Lateral do Funil)</label>
+              <input type="text" id="new-metric-action" placeholder="Ex: Atrair, Aquecer" class="w-full border border-slate-300 rounded-lg p-2 bg-white shadow-sm outline-none">
+            </div>
+            <div class="flex-1 min-w-[150px]">
+              <label class="block font-semibold text-slate-700 mb-1">O que deseja contar? (Nome)</label>
+              <input type="text" id="new-metric-label" required placeholder="Ex: Leads Ativos, Followup" class="w-full border border-slate-300 rounded-lg p-2 bg-white shadow-sm outline-none">
+            </div>
+            <div class="flex-1 min-w-[140px]">
+              <label class="block font-semibold text-slate-700 mb-1">Procurar em quais pastas?</label>
+              <select id="new-metric-group" class="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium shadow-sm outline-none"><option value="all">🌐 Todas as Pastas (Global)</option></select>
+            </div>
+            <div class="flex-1 min-w-[140px]">
+              <label class="block font-semibold text-slate-700 mb-1">Coluna Alvo (Nome exato):</label>
+              <select id="new-metric-col" required class="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium shadow-sm outline-none"></select>
+            </div>
+            <div class="flex-1 min-w-[130px]">
+              <label class="block font-semibold text-slate-700 mb-1">Contar se for igual a:</label>
+              <input type="text" id="new-metric-val" placeholder="(vazio p/ qualquer)" class="w-full border border-slate-300 rounded-lg p-2 bg-white">
+            </div>
+            <div class="flex gap-2">
+              <button type="button" id="btn-cancel-edit" onclick="cancelEditMetric()" class="hidden px-3 py-2 h-[38px] bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all" title="Cancelar"><i data-lucide="x" class="w-4 h-4"></i></button>
+              <button type="submit" id="btn-submit-metric" class="px-5 py-2 h-[38px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-all shadow-sm flex items-center gap-1.5"><i data-lucide="plus" class="w-4 h-4"></i> Adicionar</button>
+            </div>
+          </form>
+
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">MÉTRICAS CONFIGURADAS (A ORDEM DEFINE O FUNIL)</h5>
+            </div>
+            <div id="global-rules-list" class="space-y-1.5 max-h-48 overflow-y-auto pr-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE AUTOMAÇÃO -->
+  <div id="modal-automations" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl border border-slate-200"><div class="flex justify-between items-center border-b border-slate-100 pb-3"><div><h3 class="font-bold text-base text-slate-900 flex items-center gap-2"><i data-lucide="zap" class="w-5 h-5 text-amber-500 fill-amber-400"></i> Central de Automação</h3></div><button onclick="closeModal('modal-automations')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button></div><form onsubmit="handleCreateAutomation(event)" class="bg-amber-50/70 border border-amber-200 p-4 rounded-xl space-y-3"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs"><div><label class="block font-semibold text-slate-700 mb-1">1. Pasta Origem:</label><select id="auto-source-group" onchange="updateAutomationColumnDropdown()" required class="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"></select></div><div><label class="block font-semibold text-slate-700 mb-1">2. Coluna:</label><select id="auto-trigger-column" required class="w-full border border-slate-300 rounded-lg p-2 bg-white font-semibold"></select></div><div><label class="block font-semibold text-slate-700 mb-1">3. Valor exato:</label><input type="text" id="auto-trigger-value" class="w-full border border-slate-300 rounded-lg p-2 bg-white"></div><div><label class="block font-semibold text-slate-700 mb-1">4. Mover para:</label><select id="auto-target-group" required class="w-full border border-slate-300 rounded-lg p-2 bg-white font-medium"></select></div></div><button type="submit" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5"><i data-lucide="zap" class="w-3.5 h-3.5 fill-white"></i> Salvar Automação</button></form><div class="space-y-2"><div id="automations-list-container" class="space-y-2 max-h-56 overflow-y-auto p-1"></div></div></div>
+  </div>
+
+  <!-- MODAL DE CRIAR COLUNA COM OS 10 ÍCONES DO MESMO MODELO -->
+  <div id="modal-column" class="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-slate-200">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="font-bold text-sm text-slate-800">Criar Coluna</h3>
+        <button onclick="closeModal('modal-column')"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <form onsubmit="handleCreateColumnInGroup(event)" class="space-y-3.5">
+        <div class="flex gap-2 items-center">
+          <div class="relative">
+            <input type="hidden" id="col-icon-val" value="file-text">
+            <button type="button" onclick="toggleColIconDropdown(event)" class="h-9 px-3 border border-slate-300 rounded-xl bg-white flex items-center gap-1.5 hover:bg-slate-50 transition-colors">
+              <i data-lucide="file-text" id="col-icon-preview" class="w-4 h-4 text-slate-600"></i>
+              <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400"></i>
+            </button>
+            <div id="col-icon-menu" onclick="event.stopPropagation()" class="hidden absolute left-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl p-1 z-50 max-h-60 overflow-y-auto space-y-0.5">
+              <div onclick="selectColIcon('user')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="user" class="w-4 h-4 text-slate-500"></i> Usuário</div>
+              <div onclick="selectColIcon('tag')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="tag" class="w-4 h-4 text-slate-500"></i> Tag</div>
+              <div onclick="selectColIcon('file-text')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="file-text" class="w-4 h-4 text-slate-500"></i> Texto</div>
+              <div onclick="selectColIcon('calendar')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="calendar" class="w-4 h-4 text-slate-500"></i> Calendário</div>
+              <div onclick="selectColIcon('dollar-sign')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="dollar-sign" class="w-4 h-4 text-slate-500"></i> Financeiro</div>
+              <div onclick="selectColIcon('phone')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="phone" class="w-4 h-4 text-slate-500"></i> Telefone</div>
+              <div onclick="selectColIcon('folder')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="folder" class="w-4 h-4 text-slate-500"></i> Pasta</div>
+              <div onclick="selectColIcon('link')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="link" class="w-4 h-4 text-slate-500"></i> Link</div>
+              <div onclick="selectColIcon('mail')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="mail" class="w-4 h-4 text-slate-500"></i> E-mail</div>
+              <div onclick="selectColIcon('bar-chart-2')" class="flex items-center gap-2 px-2.5 py-2 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-medium text-slate-700"><i data-lucide="bar-chart-2" class="w-4 h-4 text-slate-500"></i> Gráfico / Métrica</div>
+            </div>
+          </div>
+          <input type="text" id="col-title" required placeholder="Nome da coluna" class="flex-1 border border-slate-300 rounded-xl p-2 text-xs">
+        </div>
+        <select id="col-type" class="w-full border border-slate-300 rounded-xl p-2 text-xs bg-white"><option value="text">Texto Curto</option><option value="whatsapp">📱 WhatsApp</option><option value="tags">Status / Etiquetas</option><option value="currency">Valor R$</option><option value="date">Data</option><option value="progress">Progresso (%)</option><option value="rating">Prioridade</option></select>
+        <div class="flex justify-end pt-2"><button type="submit" class="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-semibold">Adicionar</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-group-status-config" class="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4"><div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-slate-200"><div class="flex justify-between items-center border-b border-slate-100 pb-3"><h3 class="font-bold text-sm">Personalizar Etiquetas</h3><button onclick="closeModal('modal-group-status-config')"><i data-lucide="x" class="w-4 h-4"></i></button></div><div id="status-options-editor-list" class="space-y-2 max-h-72 overflow-y-auto p-1"></div><div class="flex justify-between items-center pt-2 border-t border-slate-100"><button type="button" onclick="addStatusOptionToCurrentGroupCol()" class="text-xs text-blue-600 font-semibold bg-blue-50 px-3 py-1.5 rounded-lg">+ Novo Status</button><button type="button" onclick="closeModal('modal-group-status-config')" class="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-xs">Concluído</button></div></div></div>
+  <div id="modal-settings" class="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4"><div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200"><h3 class="font-bold text-sm">Configurações do Projeto</h3><form onsubmit="handleSaveProjectSettings(event)" class="space-y-3"><input type="text" id="setting-project-name" required class="w-full border rounded-xl p-2 text-xs"><div class="flex justify-end gap-2"><button type="submit" class="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-xs">Salvar</button></div></form></div></div>
+  <div id="modal-project" class="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4"><div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200"><h3 class="font-bold text-sm">Novo Projeto</h3><form onsubmit="handleCreateProject(event)" class="space-y-3"><input type="text" id="input-project-name" required placeholder="Nome do Projeto" class="w-full border rounded-xl p-2 text-xs"><div class="flex justify-end gap-2"><button type="submit" class="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-xs">Criar</button></div></form></div></div>
+  <div id="modal-group" class="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4"><div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-200"><h3 class="font-bold text-sm">Nova Pasta / Grupo</h3><form onsubmit="handleCreateGroup(event)" class="space-y-3"><input type="text" id="input-group-name" required placeholder="Nome da pasta" class="w-full border rounded-xl p-2 text-xs"><input type="color" id="input-group-color" value="#1d4ed8" class="w-full h-8 border rounded-lg cursor-pointer"><div class="flex justify-end gap-2"><button type="submit" class="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-xs">Criar</button></div></form></div></div>
+
+  <script>
+    function getDefaultColumnsTemplate() {
+      return [
+        { id: "col_lead", name: "LEAD", icon: "user", type: "text", deletable: false, width: 160 },
+        { id: "col_whatsapp", name: "WHATSAPP", icon: "phone", type: "whatsapp", deletable: true, width: 160 },
+        { id: "col_primeiro", name: "PRIMEIRO CONTATO", icon: "calendar", type: "date", deletable: true, width: 150 },
+        { id: "col_interesse", name: "INTERESSE", icon: "tag", type: "tags", options: [{name: "Interessado", color: "#10b981"}, {name: "Frio", color: "#64748b"}], deletable: true, width: 150 }
+      ];
+    }
+
+    const initialData = {
+      activeProjectId: 1, automations: [],
+      globalReports: {
+        rules: [
+          { id: 1, action: "GERAL", label: "Total de Leads Lançados", targetGroups: ["all"], colName: "LEAD", val: "" },
+          { id: 2, action: "AQUECER", label: "Followup", targetGroups: ["all"], colName: "INTERESSE", val: "Interessado" },
+          { id: 3, action: "VENDER", label: "Descartados", targetGroups: ["all"], colName: "INTERESSE", val: "Frio" }
+        ],
+        dateColName: "PRIMEIRO CONTATO", startDate: "", endDate: ""
+      },
+      projects: [
+        {
+          id: 1, name: "Prospecção Ativa",
+          groups: [
+            { id: 101, name: "Leads Prospecção", color: "#10b981", columns: getDefaultColumnsTemplate(), tasks: [ { id: 1001, col_lead: "igor", col_whatsapp: "21999998888", col_primeiro: "2026-09-18", col_interesse: "Interessado" } ] },
+            { id: 102, name: "Followup", color: "#2563eb", columns: getDefaultColumnsTemplate(), tasks: [] }
+          ]
+        }
+      ]
+    };
+
+    let state = JSON.parse(localStorage.getItem('monday_custom_data_v33')) || initialData;
+    if (!state.automations) state.automations = [];
+    if (!state.globalReports || !state.globalReports.rules) state.globalReports = initialData.globalReports;
+    
+    const funnelColors = ['#ff4b5a', '#3d4d5c', '#fdb515', '#00b0f0', '#10b981', '#8b5cf6', '#ec4899'];
+    let targetGroupIdForColumn = null, editingStatusConfig = { groupId: null, colId: null }, activeDropdownBtn = null;
+    let draggedColInfo = null, draggedGroupInfo = null;
+
+    function saveState() { localStorage.setItem('monday_custom_data_v33', JSON.stringify(state)); render(); }
+
+    function openGlobalReports() {
+      document.getElementById('modal-global-reports').classList.remove('hidden');
+      
+      const grpSelect = document.getElementById('new-metric-group');
+      grpSelect.innerHTML = `<option value="all">🌐 Todas as Pastas</option>`;
+      state.projects.forEach(p => { 
+        const og = document.createElement('optgroup'); og.label = `Projeto: ${p.name}`; 
+        p.groups.forEach(g => { og.innerHTML += `<option value="${g.id}">Pasta: ${g.name}</option>`; }); 
+        grpSelect.appendChild(og); 
+      });
+
+      const uniqueColNames = new Set(), dateColNames = new Set();
+      state.projects.forEach(p => p.groups.forEach(g => g.columns.forEach(c => { uniqueColNames.add(c.name); if (c.type === 'date') dateColNames.add(c.name); })));
+
+      const colSelect = document.getElementById('new-metric-col');
+      colSelect.innerHTML = `<option value="*">⭐ Contar Total da Pasta (Ignorar colunas)</option>` + 
+                            Array.from(uniqueColNames).map(name => `<option value="${name}">${name}</option>`).join('');
+      
+      const dateFilterSelect = document.getElementById('report-filter-date-col');
+      dateFilterSelect.innerHTML = `<option value="">Sem filtro de data</option>` + Array.from(dateColNames).map(name => `<option value="${name}" ${state.globalReports.dateColName === name ? 'selected' : ''}>${name}</option>`).join('');
+
+      document.getElementById('report-filter-start').value = state.globalReports.startDate || '';
+      document.getElementById('report-filter-end').value = state.globalReports.endDate || '';
+
+      cancelEditMetric();
+      renderReportsContent();
+    }
+
+    function triggerReportRender() { state.globalReports.dateColName = document.getElementById('report-filter-date-col').value; state.globalReports.startDate = document.getElementById('report-filter-start').value; state.globalReports.endDate = document.getElementById('report-filter-end').value; saveState(); renderReportsContent(); }
+    function clearReportFilters() { document.getElementById('report-filter-date-col').value = ""; document.getElementById('report-filter-start').value = ""; document.getElementById('report-filter-end').value = ""; triggerReportRender(); }
+
+    function moveMetricUp(index) { if (index === 0) return; const r = state.globalReports.rules; [r[index - 1], r[index]] = [r[index], r[index - 1]]; saveState(); renderReportsContent(); }
+    function moveMetricDown(index) { const r = state.globalReports.rules; if (index === r.length - 1) return; [r[index + 1], r[index]] = [r[index], r[index + 1]]; saveState(); renderReportsContent(); }
+
+    function editGlobalMetric(id) {
+      const rule = state.globalReports.rules.find(r => r.id === id); if (!rule) return;
+      document.getElementById('editing-metric-id').value = rule.id;
+      document.getElementById('new-metric-action').value = rule.action || '';
+      document.getElementById('new-metric-label').value = rule.label;
+      document.getElementById('new-metric-group').value = rule.targetGroups[0] || 'all';
+      
+      const colSelect = document.getElementById('new-metric-col');
+      if(rule.colName === '*') {
+          let hasAsterisk = Array.from(colSelect.options).some(o => o.value === '*');
+          if(!hasAsterisk) colSelect.innerHTML = `<option value="*">⭐ Contar Total da Pasta (Ignorar colunas)</option>` + colSelect.innerHTML;
+      }
+      colSelect.value = rule.colName;
+      document.getElementById('new-metric-val').value = rule.val;
+      
+      const form = document.getElementById('metric-form-container'); form.classList.replace('bg-indigo-50', 'bg-amber-50'); form.classList.replace('border-indigo-100', 'border-amber-200');
+      const btn = document.getElementById('btn-submit-metric'); btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Atualizar'; btn.className = btn.className.replace('indigo', 'amber');
+      document.getElementById('btn-cancel-edit').classList.remove('hidden'); lucide.createIcons();
+    }
+
+    function cancelEditMetric() {
+      document.getElementById('editing-metric-id').value = ''; document.getElementById('new-metric-action').value = ''; document.getElementById('new-metric-label').value = ''; document.getElementById('new-metric-val').value = '';
+      const form = document.getElementById('metric-form-container'); form.classList.replace('bg-amber-50', 'bg-indigo-50'); form.classList.replace('border-amber-200', 'border-indigo-100');
+      const btn = document.getElementById('btn-submit-metric'); btn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Adicionar'; btn.className = btn.className.replace('amber', 'indigo');
+      document.getElementById('btn-cancel-edit').classList.add('hidden'); lucide.createIcons();
+    }
+
+    function handleAddGlobalMetric(e) {
+      e.preventDefault();
+      const idToEdit = document.getElementById('editing-metric-id').value, action = document.getElementById('new-metric-action').value.trim(), label = document.getElementById('new-metric-label').value.trim(), targetGroup = document.getElementById('new-metric-group').value, colName = document.getElementById('new-metric-col').value.trim(), val = document.getElementById('new-metric-val').value.trim();
+
+      if (idToEdit) {
+        const rule = state.globalReports.rules.find(r => r.id == idToEdit);
+        if (rule) { rule.action = action; rule.label = label; rule.targetGroups = [targetGroup]; rule.colName = colName; rule.val = val; }
+        cancelEditMetric();
+      } else {
+        state.globalReports.rules.push({ id: Date.now(), action, label, targetGroups: [targetGroup], colName, val });
+        document.getElementById('new-metric-action').value = ''; document.getElementById('new-metric-label').value = ''; document.getElementById('new-metric-val').value = '';
+      }
+      saveState(); renderReportsContent();
+    }
+    function deleteGlobalMetric(ruleId) { state.globalReports.rules = state.globalReports.rules.filter(r => r.id !== ruleId); saveState(); renderReportsContent(); }
+
+    function renderReportsContent() {
+      const rulesList = document.getElementById('global-rules-list'); rulesList.innerHTML = '';
+      
+      if (state.globalReports.rules.length === 0) { rulesList.innerHTML = `<p class="text-xs text-slate-400 italic">Nenhuma etapa configurada no funil.</p>`; } 
+      else {
+        state.globalReports.rules.forEach((rule, index) => {
+          rulesList.innerHTML += `
+            <div class="flex items-center justify-between bg-white border border-slate-200 p-2.5 rounded-lg text-xs shadow-sm border-l-4" style="border-left-color: ${funnelColors[index % funnelColors.length]}">
+              <div class="flex items-center gap-3">
+                <div class="flex flex-col gap-1 items-center bg-slate-100 p-1 rounded-md">
+                  <button onclick="moveMetricUp(${index})" class="text-slate-400 hover:text-blue-600"><i data-lucide="chevron-up" class="w-4 h-4"></i></button>
+                  <button onclick="moveMetricDown(${index})" class="text-slate-400 hover:text-blue-600"><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+                </div>
+                <div class="flex flex-col">
+                  <span class="font-bold text-slate-700 text-sm"><span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded mr-1">${index+1}</span> ${rule.label}</span>
+                  <span class="text-[10px] text-slate-500 mt-1">
+                    Coluna: <b>${rule.colName === '*' ? 'Todas (Ignorando coluna)' : rule.colName}</b> ${rule.val ? '| ="'+rule.val+'"' : ''}
+                  </span>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                <button onclick="editGlobalMetric(${rule.id})" class="text-blue-500 hover:bg-blue-50 p-1.5 rounded-md transition-colors"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+                <button onclick="deleteGlobalMetric(${rule.id})" class="text-rose-400 hover:bg-rose-50 p-1.5 rounded-md transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+              </div>
+            </div>`;
+        });
+      }
+
+      const metricsContainer = document.getElementById('global-metrics-container'); 
+      metricsContainer.innerHTML = '';
+      let funnnelResults = [];
+
+      state.globalReports.rules.forEach(rule => {
+        let count = 0;
+        state.projects.forEach(p => p.groups.forEach(g => {
+          if (!rule.targetGroups.includes('all') && !rule.targetGroups.includes(String(g.id))) return;
+          
+          let dateColDef = (state.globalReports.dateColName && state.globalReports.startDate && state.globalReports.endDate) ? g.columns.find(c => String(c.name).toLowerCase() === String(state.globalReports.dateColName).toLowerCase()) : null;
+
+          if (rule.colName === '*') {
+            g.tasks.forEach(t => {
+              if (dateColDef && (!t[dateColDef.id] || t[dateColDef.id] < state.globalReports.startDate || t[dateColDef.id] > state.globalReports.endDate)) return;
+              count++;
+            });
+          } else {
+            const targetColDef = g.columns.find(c => String(c.name).toLowerCase() === String(rule.colName).toLowerCase());
+            if (!targetColDef) return;
+            
+            g.tasks.forEach(t => {
+              if (dateColDef && (!t[dateColDef.id] || t[dateColDef.id] < state.globalReports.startDate || t[dateColDef.id] > state.globalReports.endDate)) return;
+              const val = String(t[targetColDef.id] || '').trim().toLowerCase();
+              if (rule.val === '') { if (t[targetColDef.id] !== undefined && t[targetColDef.id] !== null && String(t[targetColDef.id]).trim() !== '') count++; } 
+              else { if (val === String(rule.val).trim().toLowerCase()) count++; }
+            });
+          }
+        }));
+        
+        funnnelResults.push({ rule, count });
+        metricsContainer.innerHTML += `
+          <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col justify-between hover:border-indigo-300 transition-colors">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">${rule.label}</span>
+            <span class="text-3xl font-extrabold text-indigo-600 mt-2">${count}</span>
+          </div>`;
+      });
+
+      const funnelContainer = document.getElementById('funnel-visualization-container');
+      funnelContainer.innerHTML = '';
+      
+      if (funnnelResults.length > 0) {
+        const topFunnelCount = funnnelResults[0].count;
+
+        funnnelResults.forEach((item, index) => {
+          const pct = topFunnelCount === 0 ? 0 : Math.round((item.count / topFunnelCount) * 100);
+          const color = funnelColors[index % funnelColors.length];
+          const actionText = item.rule.action ? item.rule.action.toUpperCase() : `ETAPA ${index + 1}`;
+          const stepWidth = 100 - (index * (55 / Math.max(1, funnnelResults.length)));
+
+          funnelContainer.innerHTML += `
+            <div class="w-full flex flex-col items-center group relative mb-[2px]">
+              <div class="absolute left-0 md:-left-2 top-1/2 -translate-y-1/2 z-20 flex items-center shadow-lg drop-shadow-md">
+                <div class="text-white font-black text-[9px] md:text-[10px] px-2 md:px-3 py-1.5 tracking-widest flex items-center justify-center" 
+                     style="background-color: ${color}; clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%); min-width: 70px; height: 28px;">
+                  ${actionText}
+                </div>
+                <div style="width: 10px; height: 28px; background-color: ${color}; clip-path: polygon(0 0, 100% 50%, 0 100%); margin-left: -1px;"></div>
+              </div>
+              <div class="text-white shadow-sm transition-all duration-300 relative z-10 flex items-center justify-between px-3 md:px-8 py-2 hover:brightness-110"
+                   style="width: ${stepWidth}%; height: 45px; background-color: ${color}; clip-path: polygon(0 0, 100% 0, 96% 100%, 4% 100%);">
+                <span class="font-bold text-[11px] md:text-sm tracking-wide uppercase truncate ml-[65px] md:ml-[75px] w-[50%] drop-shadow-sm">${item.rule.label}</span>
+                <div class="flex items-center justify-end gap-1.5 md:gap-2 w-[40%]">
+                  <span class="text-base md:text-xl font-black drop-shadow-md">${item.count}</span>
+                  <span class="bg-black/15 text-white/95 border border-white/10 text-[9px] md:text-[10px] px-1.5 py-0.5 rounded font-bold tracking-wider">${pct}%</span>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+      } else { funnelContainer.innerHTML = `<p class="text-xs text-slate-400 italic py-4">Adicione regras abaixo para montar o funil.</p>`; }
+      lucide.createIcons();
+    }
+
+    function toggleColIconDropdown(e) { if (e) e.stopPropagation(); document.getElementById('col-icon-menu').classList.toggle('hidden'); lucide.createIcons(); }
+    function closeColIconDropdown() { const m = document.getElementById('col-icon-menu'); if (m) m.classList.add('hidden'); }
+    function selectColIcon(iconName) { document.getElementById('col-icon-val').value = iconName; document.getElementById('col-icon-preview').setAttribute('data-lucide', iconName); closeColIconDropdown(); lucide.createIcons(); }
+    function normalizeOptions(opts) { if (!opts || !Array.isArray(opts)) return []; return opts.map((item, idx) => { if (typeof item === 'string') { return { name: item, color: ['#10b981', '#f59e0b', '#ef4444', '#0284c7'][idx % 4] }; } return item; }); }
+    function moveTaskToGroup(sourceGroupId, taskId, targetVal) { if (!targetVal) return; const [targetProjId, targetGroupId] = targetVal.split(':'); let sourceGroup = null, sourceProj = null, taskIdx = -1; for (const p of state.projects) { const g = p.groups.find(gr => String(gr.id) === String(sourceGroupId)); if (g) { const idx = g.tasks.findIndex(t => String(t.id) === String(taskId)); if (idx !== -1) { sourceGroup = g; sourceProj = p; taskIdx = idx; break; } } } let targetGroup = null, targetProj = null; for (const p of state.projects) { if (String(p.id) === String(targetProjId)) { const g = p.groups.find(gr => String(gr.id) === String(targetGroupId)); if (g) { targetGroup = g; targetProj = p; break; } } } if (sourceGroup && targetGroup && taskIdx !== -1) { const [movedTask] = sourceGroup.tasks.splice(taskIdx, 1); if (!targetGroup.tasks) targetGroup.tasks = []; targetGroup.tasks.push(movedTask); showAutomationToast(`Movida para ${targetGroup.name}`); saveState(); } }
+    function updateGroupColor(groupId, newColor) { const proj = getActiveProject(); if (!proj) return; const group = proj.groups.find(g => String(g.id) === String(groupId)); if (group) { group.color = newColor; saveState(); } }
+    function getActiveProject() { return state.projects.find(p => String(p.id) === String(state.activeProjectId)) || state.projects[0]; }
+    function setActiveProject(projId) { state.activeProjectId = projId; saveState(); }
+    function scrollToGroup(groupId) { document.getElementById(`group-card-${groupId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); if(id === 'modal-automations') renderAutomationsModal(); if(id === 'modal-settings') populateSettingsModal(); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function editGroupNameInline(event, groupId) { event.stopPropagation(); const el = event.currentTarget, group = getActiveProject().groups.find(g => String(g.id) === String(groupId)); if (!group) return; const input = document.createElement('input'); input.type = 'text'; input.value = group.name; input.className = 'text-sm font-bold border-2 border-blue-500 rounded px-2 bg-white text-slate-900'; el.replaceWith(input); input.focus(); input.select(); let done = false; const save = () => { if (done) return; done = true; const val = input.value.trim(); if (val) { group.name = val; saveState(); } else render(); }; input.addEventListener('blur', save); input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { done = true; render(); } }); }
+    function editColumnNameInline(event, groupId, colId) { event.stopPropagation(); const el = event.currentTarget, col = getActiveProject().groups.find(g => String(g.id) === String(groupId))?.columns.find(c => c.id === colId); if (!col) return; const input = document.createElement('input'); input.type = 'text'; input.value = col.name; input.className = 'text-xs font-bold border-2 border-blue-500 rounded px-1.5 py-0.5 bg-white text-slate-900 w-full'; el.replaceWith(input); input.focus(); input.select(); let done = false; const save = () => { if (done) return; done = true; const val = input.value.trim(); if (val) { col.name = val; saveState(); } else render(); }; input.addEventListener('blur', save); input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { done = true; render(); } }); }
+    function editProjectNameInline(event, projId) { event.stopPropagation(); const proj = state.projects.find(p => String(p.id) === String(projId)); if (!proj) return; const el = event.currentTarget, input = document.createElement('input'); input.type = 'text'; input.value = proj.name; input.className = 'text-base font-bold border-2 border-blue-500 rounded-lg px-2 bg-white text-slate-900'; el.replaceWith(input); input.focus(); input.select(); let done = false; const save = () => { if (done) return; done = true; const val = input.value.trim(); if (val) { proj.name = val; saveState(); } else render(); }; input.addEventListener('blur', save); input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { done = true; render(); } }); }
+    function checkAndRunAutomationsByColumn(sourceGroupId, taskId, colId, val) { if (!state.automations || state.automations.length === 0) return; if (val === undefined || val === null || val === '') return; let sourceGroup = null, sourceProj = null, taskIdx = -1; for (const p of state.projects) { const g = p.groups.find(gr => String(gr.id) === String(sourceGroupId)); if (g) { const idx = g.tasks.findIndex(t => String(t.id) === String(taskId)); if (idx !== -1) { sourceGroup = g; sourceProj = p; taskIdx = idx; break; } } } if (!sourceGroup || taskIdx === -1) return; const matchedAuto = state.automations.find(a => { const mProj = (a.sourceProjId === 'any' || String(a.sourceProjId) === String(sourceProj.id)); const mGroup = (a.sourceGroupId === 'any' || String(a.sourceGroupId) === String(sourceGroupId)); const mCol = String(a.triggerColId) === String(colId); let mVal = true; if (a.triggerValue && a.triggerValue !== '') { mVal = String(val).trim().toLowerCase() === String(a.triggerValue).trim().toLowerCase(); } return mProj && mGroup && mCol && mVal; }); if (matchedAuto) { let targetGroup = null, targetProj = null; for (const p of state.projects) { if (String(p.id) === String(matchedAuto.targetProjId)) { targetGroup = p.groups.find(gr => String(gr.id) === String(matchedAuto.targetGroupId)); if (targetGroup) targetProj = p; } } if (targetGroup && (String(targetGroup.id) !== String(sourceGroup.id) || String(targetProj.id) !== String(sourceProj.id))) { const [movedTask] = sourceGroup.tasks.splice(taskIdx, 1); if (!targetGroup.tasks) targetGroup.tasks = []; targetGroup.tasks.push(movedTask); showAutomationToast(`⚡ Movido para ${targetGroup.name}`); saveState(); } } }
+    function showAutomationToast(message) { const toast = document.getElementById('automation-toast'), text = document.getElementById('automation-toast-text'); if (!toast || !text) return; text.innerText = message; toast.classList.remove('hidden'); toast.style.position = 'fixed'; toast.style.bottom = '24px'; toast.style.right = '24px'; toast.style.zIndex = '99999'; setTimeout(() => toast.classList.add('hidden'), 4000); }
+    function updateAutomationColumnDropdown() { const sourceVal = document.getElementById('auto-source-group').value; const colSelect = document.getElementById('auto-trigger-column'); colSelect.innerHTML = ''; let colsMap = new Map(); if (sourceVal === 'any') { state.projects.forEach(p => p.groups.forEach(g => (g.columns || []).forEach(col => { colsMap.set(col.id, `Coluna: ${col.name}`); }))); } else { const [pId, gId] = sourceVal.split(':'); const targetP = state.projects.find(p => String(p.id) === String(pId)); const targetG = targetP?.groups.find(g => String(g.id) === String(gId)); targetG?.columns?.forEach((col, idx) => { colsMap.set(col.id, `Col #${idx+1}: ${col.name}`); }); } if (colsMap.size === 0) { colSelect.innerHTML = `<option value="col_interesse">INTERESSE</option>`; } else { colsMap.forEach((label, id) => { colSelect.innerHTML += `<option value="${id}">${label}</option>`; }); } }
+    function renderAutomationsModal() { const sourceSelect = document.getElementById('auto-source-group'); sourceSelect.innerHTML = `<option value="any">Qualquer Projeto / Pasta</option>`; state.projects.forEach(p => { const og = document.createElement('optgroup'); og.label = `📁 Projeto: ${p.name}`; p.groups.forEach(g => og.innerHTML += `<option value="${p.id}:${g.id}">Pasta: ${g.name}</option>`); sourceSelect.appendChild(og); }); const targetSelect = document.getElementById('auto-target-group'); targetSelect.innerHTML = ''; state.projects.forEach(p => { const og = document.createElement('optgroup'); og.label = `🚀 Projeto: ${p.name}`; p.groups.forEach(g => og.innerHTML += `<option value="${p.id}:${g.id}">Pasta: ${g.name}</option>`); targetSelect.appendChild(og); }); updateAutomationColumnDropdown(); const container = document.getElementById('automations-list-container'); container.innerHTML = ''; if (!state.automations || state.automations.length === 0) { container.innerHTML = `<p class="text-xs text-slate-400 italic p-2">Nenhuma automação.</p>`; return; } state.automations.forEach(auto => { let sourceName = 'QUALQUER'; if (auto.sourceProjId !== 'any' && auto.sourceGroupId !== 'any') { const sp = state.projects.find(p => String(p.id) === String(auto.sourceProjId)); const sg = sp?.groups.find(g => String(g.id) === String(auto.sourceGroupId)); if (sp && sg) sourceName = `[${sp.name}] ➔ ${sg.name}`; } let targetName = 'Destino desconhecido'; const tp = state.projects.find(p => String(p.id) === String(auto.targetProjId)); const tg = tp?.groups.find(g => String(g.id) === String(auto.targetGroupId)); if (tp && tg) targetName = `[${tp.name}] ➔ ${tg.name}`; let colLabel = auto.triggerColId || 'Coluna'; let valCond = auto.triggerValue ? ` = "${auto.triggerValue}"` : ' (qualquer preenchimento)'; container.innerHTML += `<div class="flex items-center justify-between bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-xs gap-2"><div class="flex items-center gap-1.5 flex-wrap"><span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md">${sourceName}</span><span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-md">⚡ Coluna (${colLabel})${valCond}</span><i data-lucide="arrow-right" class="w-3.5 h-3.5 text-slate-400"></i><span class="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">Mover para ${targetName}</span></div><button onclick="deleteAutomation(${auto.id})" class="text-rose-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`; }); lucide.createIcons(); }
+    function handleCreateAutomation(e) { e.preventDefault(); const sourceVal = document.getElementById('auto-source-group').value, triggerCol = document.getElementById('auto-trigger-column').value, triggerValue = document.getElementById('auto-trigger-value').value.trim(), targetVal = document.getElementById('auto-target-group').value; if (!triggerCol || !targetVal) return; let sourceProjId = 'any', sourceGroupId = 'any'; if (sourceVal !== 'any') [sourceProjId, sourceGroupId] = sourceVal.split(':'); const [targetProjId, targetGroupId] = targetVal.split(':'); state.automations.push({ id: Date.now(), sourceProjId: String(sourceProjId), sourceGroupId: String(sourceGroupId), triggerColId: triggerCol, triggerValue: triggerValue, targetProjId: String(targetProjId), targetGroupId: String(targetGroupId) }); renderAutomationsModal(); saveState(); }
+    function deleteAutomation(autoId) { state.automations = state.automations.filter(a => a.id !== autoId); renderAutomationsModal(); saveState(); }
+    function onColDragStart(e, gId, cId) { draggedColInfo = { groupId: gId, colId: cId }; e.dataTransfer.effectAllowed = 'move'; e.target.classList.add('opacity-40'); }
+    function onColDragEnd(e) { e.target.classList.remove('opacity-40'); document.querySelectorAll('.drag-over-target').forEach(el => el.classList.remove('drag-over-target')); draggedColInfo = null; }
+    function onColDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; e.currentTarget.classList.add('drag-over-target'); }
+    function onColDragLeave(e) { e.currentTarget.classList.remove('drag-over-target'); }
+    function onColDrop(e, targetGId, targetCId) { e.preventDefault(); e.stopPropagation(); document.querySelectorAll('.drag-over-target').forEach(el => el.classList.remove('drag-over-target')); if (!draggedColInfo || String(draggedColInfo.groupId) !== String(targetGId) || draggedColInfo.colId === targetCId) return; const group = getActiveProject().groups.find(g => String(g.id) === String(targetGId)); if (!group?.columns) return; const fIdx = group.columns.findIndex(c => c.id === draggedColInfo.colId), tIdx = group.columns.findIndex(c => c.id === targetCId); if (fIdx !== -1 && tIdx !== -1) { const [moved] = group.columns.splice(fIdx, 1); group.columns.splice(tIdx, 0, moved); saveState(); } }
+    function onGroupDragStart(e, gId) { draggedGroupInfo = gId; e.dataTransfer.effectAllowed = 'move'; }
+    function onGroupDragEnd(e) { draggedGroupInfo = null; document.querySelectorAll('.drag-over-group').forEach(el => el.classList.remove('drag-over-group')); }
+    function onGroupDragOver(e) { if (!draggedGroupInfo) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; e.currentTarget.classList.add('drag-over-group'); }
+    function onGroupDragLeave(e) { e.currentTarget.classList.remove('drag-over-group'); }
+    function onGroupDrop(e, targetGId) { if (!draggedGroupInfo || String(draggedGroupInfo) === String(targetGId)) return; e.preventDefault(); e.stopPropagation(); document.querySelectorAll('.drag-over-group').forEach(el => el.classList.remove('drag-over-group')); const proj = getActiveProject(); if (!proj) return; const fIdx = proj.groups.findIndex(g => String(g.id) === String(draggedGroupInfo)), tIdx = proj.groups.findIndex(g => String(g.id) === String(targetGId)); if (fIdx !== -1 && tIdx !== -1) { const [moved] = proj.groups.splice(fIdx, 1); proj.groups.splice(tIdx, 0, moved); saveState(); } }
+    function openAddColumnModalForGroup(gId) { targetGroupIdForColumn = gId; openModal('modal-column'); }
+    function handleCreateColumnInGroup(e) { e.preventDefault(); const proj = getActiveProject(); if (!proj || !targetGroupIdForColumn) return; const group = proj.groups.find(g => String(g.id) === String(targetGroupIdForColumn)); if (!group) return; const colIcon = document.getElementById('col-icon-val')?.value || 'file-text'; const colTitle = document.getElementById('col-title').value.trim(); const colType = document.getElementById('col-type').value; const newCol = { id: 'col_' + Date.now(), name: colTitle, icon: colIcon, type: colType, deletable: true, width: colType === 'whatsapp' ? 160 : 130 }; if (colType === 'tags') newCol.options = [{ name: "Interessado", color: "#10b981" }, { name: "Frio", color: "#64748b" }]; if (!group.columns) group.columns = getDefaultColumnsTemplate(); group.columns.push(newCol); document.getElementById('col-title').value = ''; closeModal('modal-column'); saveState(); }
+    function deleteColumnFromGroup(gId, cId) { const group = getActiveProject().groups.find(g => String(g.id) === String(gId)); if (group && confirm('Excluir esta coluna?')) { group.columns = group.columns.filter(c => c.id !== cId); saveState(); } }
+    function openStatusOptionsEditor(gId, cId) { editingStatusConfig = { groupId: gId, colId: cId }; renderStatusOptionsEditorList(); openModal('modal-group-status-config'); }
+    function renderStatusOptionsEditorList() { const col = getActiveProject().groups.find(g => String(g.id) === String(editingStatusConfig.groupId))?.columns.find(c => c.id === editingStatusConfig.colId); if (!col) return; const listDiv = document.getElementById('status-options-editor-list'); listDiv.innerHTML = ''; normalizeOptions(col.options).forEach((opt, idx) => { listDiv.innerHTML += `<div class="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200"><input type="text" value="${opt.name}" onchange="updateGroupStatusOptionName(${idx}, this.value)" class="flex-1 text-xs border rounded-lg p-1.5 font-semibold text-slate-800"><input type="color" value="${opt.color || '#3b82f6'}" onchange="updateGroupStatusOptionColor(${idx}, this.value)" class="w-5 h-5 rounded cursor-pointer border-0 bg-transparent"><button type="button" onclick="removeGroupStatusOption(${idx})" class="text-rose-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></div>`; }); lucide.createIcons(); }
+    function updateGroupStatusOptionName(idx, val) { const col = getActiveProject().groups.find(g => String(g.id) === String(editingStatusConfig.groupId))?.columns.find(c => c.id === editingStatusConfig.colId); if (col) { col.options = normalizeOptions(col.options); if(col.options[idx]) { col.options[idx].name = val.trim(); saveState(); } } }
+    function updateGroupStatusOptionColor(idx, val) { const col = getActiveProject().groups.find(g => String(g.id) === String(editingStatusConfig.groupId))?.columns.find(c => c.id === editingStatusConfig.colId); if (col) { col.options = normalizeOptions(col.options); if(col.options[idx]) { col.options[idx].color = val; saveState(); } } }
+    function addStatusOptionToCurrentGroupCol() { const col = getActiveProject().groups.find(g => String(g.id) === String(editingStatusConfig.groupId))?.columns.find(c => c.id === editingStatusConfig.colId); if (col) { col.options = normalizeOptions(col.options); col.options.push({name: "Novo", color: "#3b82f6"}); renderStatusOptionsEditorList(); saveState(); } }
+    function removeGroupStatusOption(idx) { const col = getActiveProject().groups.find(g => String(g.id) === String(editingStatusConfig.groupId))?.columns.find(c => c.id === editingStatusConfig.colId); if (col) { col.options = normalizeOptions(col.options); col.options.splice(idx, 1); renderStatusOptionsEditorList(); saveState(); } }
+    function openStatusPopover(event, gId, tId, cId) { event.stopPropagation(); const btn = event.currentTarget, menu = document.getElementById('floating-status-menu'); if (activeDropdownBtn === btn && !menu.classList.contains('hidden')) { closeStatusPopover(); return; } activeDropdownBtn = btn; const group = getActiveProject().groups.find(g => String(g.id) === String(gId)), col = group?.columns.find(c => c.id === cId), task = group?.tasks.find(t => String(t.id) === String(tId)); if (!col || !task) return; const opts = normalizeOptions(col.options), currentVal = task[cId] || opts[0]?.name || ''; let html = ''; opts.forEach(o => { html += `<button onclick="selectStatusOption(${gId}, ${tId}, '${cId}', '${o.name}')" style="background-color: ${o.color};" class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-white text-xs hover:opacity-95 flex items-center justify-between shadow-xs"><span>${o.name}</span>${o.name === currentVal ? '<i data-lucide="check" class="w-3.5 h-3.5"></i>' : ''}</button>`; }); menu.innerHTML = html; lucide.createIcons(); const rect = btn.getBoundingClientRect(); menu.style.left = `${Math.min(rect.left, window.innerWidth - 180)}px`; menu.style.top = `${rect.bottom + 4}px`; menu.classList.remove('hidden'); }
+    function closeStatusPopover() { document.getElementById('floating-status-menu')?.classList.add('hidden'); activeDropdownBtn = null; }
+    function selectStatusOption(gId, tId, cId, val) { closeStatusPopover(); updateCellValue(gId, tId, cId, val); }
+    function addNewTaskInline(targetGId) { closeStatusPopover(); const proj = getActiveProject(); if (!proj) return; let group = proj.groups.find(g => String(g.id) === String(targetGId)) || proj.groups[0]; if (!group) return; if (!group.columns) group.columns = getDefaultColumnsTemplate(); const newTask = { id: Date.now() }; group.columns.forEach(col => { newTask[col.id] = col.type === 'currency' ? 0 : col.type === 'rating' ? 3 : col.type === 'tags' ? normalizeOptions(col.options)[0]?.name || '' : ''; }); group.tasks.push(newTask); saveState(); }
+    function updateCellValue(gId, tId, cId, val) { const task = getActiveProject().groups.find(g => String(g.id) === String(gId))?.tasks.find(t => String(t.id) === String(tId)); if (task) { task[cId] = val; saveState(); checkAndRunAutomationsByColumn(gId, tId, cId, val); } }
+    function setTaskPriority(gId, tId, cId, val) { closeStatusPopover(); updateCellValue(gId, tId, cId, parseInt(val)); }
+    function populateSettingsModal() { document.getElementById('setting-project-name').value = getActiveProject()?.name || ''; }
+    function handleSaveProjectSettings(e) { e.preventDefault(); const p = getActiveProject(); if (p) { p.name = document.getElementById('setting-project-name').value; closeModal('modal-settings'); saveState(); } }
+    function handleCreateProject(e) { e.preventDefault(); const np = { id: Date.now(), name: document.getElementById('input-project-name').value, groups: [] }; state.projects.push(np); state.activeProjectId = np.id; document.getElementById('input-project-name').value = ''; closeModal('modal-project'); saveState(); }
+    function handleCreateGroup(e) { e.preventDefault(); const proj = getActiveProject(); if (!proj) return; proj.groups.push({ id: Date.now(), name: document.getElementById('input-group-name').value, color: document.getElementById('input-group-color').value, columns: getDefaultColumnsTemplate(), tasks: [] }); document.getElementById('input-group-name').value = ''; closeModal('modal-group'); saveState(); }
+    function deleteProject(pId) { if (state.projects.length <= 1) return alert("Mínimo 1 projeto."); const p = state.projects.find(x => String(x.id) === String(pId)); if (p && confirm(`Excluir projeto "${p.name}"?`)) { state.projects = state.projects.filter(x => String(x.id) !== String(pId)); if (String(state.activeProjectId) === String(pId)) state.activeProjectId = state.projects[0].id; saveState(); } }
+    function deleteGroup(gId) { const proj = getActiveProject(); const g = proj?.groups.find(x => String(x.id) === String(gId)); if (g && confirm(`Excluir pasta "${g.name}"?`)) { proj.groups = proj.groups.filter(x => String(x.id) !== String(gId)); saveState(); } }
+    function deleteTask(gId, tId) { closeStatusPopover(); const g = getActiveProject()?.groups.find(x => String(x.id) === String(gId)); if (g) { g.tasks = g.tasks.filter(t => String(t.id) !== String(tId)); saveState(); } }
+    function initColumnResizer(e, gId, cId) { e.preventDefault(); e.stopPropagation(); const resizer = e.currentTarget, th = resizer.parentElement, startX = e.clientX, startW = th.offsetWidth; resizer.classList.add('resizing'); const onMove = m => { const w = Math.max(70, startW + (m.clientX - startX)); th.style.width = `${w}px`; th.style.minWidth = `${w}px`; }; const onUp = () => { resizer.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); const col = getActiveProject()?.groups.find(g => String(g.id) === String(gId))?.columns.find(c => c.id === cId); if(col) { col.width = parseInt(th.style.width)||130; saveState(); } }; document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); }
+
+    function render() { const proj = getActiveProject(); document.getElementById('header-project-title').innerText = proj ? proj.name : 'Nenhum Projeto'; renderSidebar(); renderBoardGroups(); lucide.createIcons(); }
+    function renderSidebar() { const list = document.getElementById('sidebar-projects-list'); list.innerHTML = ''; state.projects.forEach(p => { const isActive = String(p.id) === String(state.activeProjectId); let groupsHtml = p.groups.length > 0 ? `<div class="mt-2 pl-3 border-l-2 border-slate-200 space-y-1">${p.groups.map(g => `<div onclick="event.stopPropagation(); setActiveProject(${p.id}); scrollToGroup(${g.id});" class="flex items-center justify-between p-1.5 rounded-lg hover:bg-slate-100 text-[11px] font-medium text-slate-600 hover:text-blue-600 cursor-pointer group/gitem"><span class="flex items-center gap-1.5 truncate"><i data-lucide="folder" class="w-3.5 h-3.5 shrink-0 text-slate-400"></i><label class="relative cursor-pointer flex items-center justify-center shrink-0" onclick="event.stopPropagation()"><span class="w-2.5 h-2.5 rounded-full border border-slate-300" style="background-color: ${g.color}"></span><input type="color" value="${g.color}" onchange="updateGroupColor(${g.id}, this.value)" class="absolute inset-0 opacity-0 cursor-pointer"></label><span class="truncate">${g.name}</span></span><button onclick="event.stopPropagation(); deleteGroup(${g.id})" class="opacity-0 group-hover/gitem:opacity-100 text-slate-300 hover:text-rose-500 p-0.5"><i data-lucide="trash-2" class="w-3 h-3"></i></button></div>`).join('')}</div>` : `<div class="mt-1 pl-3 text-[10px] text-slate-400 italic">Sem pastas</div>`; list.innerHTML += `<div onclick="setActiveProject(${p.id})" class="p-2.5 rounded-xl border transition-all cursor-pointer group/proj ${isActive ? 'bg-blue-50/70 border-blue-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'}"><div class="flex justify-between items-center font-bold text-xs text-slate-800"><span class="flex items-center gap-2 truncate"><i data-lucide="folder-kanban" class="w-3.5 h-3.5 ${isActive ? 'text-blue-600' : 'text-slate-400'}"></i><span onclick="editProjectNameInline(event, ${p.id})" class="truncate">${p.name}</span></span><button onclick="event.stopPropagation(); deleteProject(${p.id})" class="opacity-0 group-hover/proj:opacity-100 text-slate-300 hover:text-rose-500 p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></div>${groupsHtml}</div>`; }); }
+    function renderBoardGroups() { const container = document.getElementById('board-groups-container'); container.innerHTML = ''; const proj = getActiveProject(); if (!proj || proj.groups.length === 0) { container.innerHTML = `<div class="bg-white border rounded-2xl p-8 text-center"><p class="text-xs text-slate-500">Sem pastas.</p></div>`; return; } const allDestOptions = state.projects.map(p => { const opts = p.groups.map(g => `<option value="${p.id}:${g.id}">📁 [${p.name}] ${g.name}</option>`).join(''); return opts ? `<optgroup label="Projeto: ${p.name}">${opts}</optgroup>` : ''; }).join(''); proj.groups.forEach(group => { if (!group.columns) group.columns = getDefaultColumnsTemplate(); container.innerHTML += `<div id="group-card-${group.id}" draggable="true" ondragstart="onGroupDragStart(event, ${group.id})" ondragend="onGroupDragEnd(event)" ondragover="onGroupDragOver(event)" ondragleave="onGroupDragLeave(event)" ondrop="onGroupDrop(event, ${group.id})" class="bg-white rounded-2xl border border-slate-200/95 shadow-xs transition-all"><div class="p-3.5 flex flex-wrap justify-between items-center gap-2 bg-slate-50/40 border-b border-slate-200/80 rounded-t-2xl cursor-grab active:cursor-grabbing"><div class="flex items-center gap-2"><i data-lucide="grip-vertical" class="w-4 h-4 text-slate-400"></i><label class="relative cursor-pointer flex items-center justify-center shrink-0" onclick="event.stopPropagation()"><span class="w-3.5 h-3.5 rounded-full border border-slate-300" style="background-color: ${group.color}"></span><input type="color" value="${group.color}" onchange="updateGroupColor(${group.id}, this.value)" class="absolute inset-0 opacity-0 cursor-pointer"></label><h2 onclick="editGroupNameInline(event, ${group.id})" class="font-bold text-sm tracking-wide cursor-pointer hover:bg-slate-200/60 px-2 py-0.5 rounded-lg border border-transparent hover:border-slate-300" style="color: ${group.color}">${group.name}</h2></div><div class="flex items-center gap-2" onclick="event.stopPropagation()"><button onclick="addNewTaskInline(${group.id})" class="text-xs text-emerald-700 font-semibold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-2xs"><i data-lucide="plus" class="w-3.5 h-3.5"></i> + Add Atividade</button><button onclick="deleteGroup(${group.id})" class="text-slate-300 hover:text-rose-500 p-1"><i data-lucide="trash" class="w-3.5 h-3.5"></i></button></div></div><div class="overflow-x-auto"><table class="w-full text-left text-xs table-fixed"><thead><tr class="border-b border-slate-200/80 bg-slate-50/80 text-slate-400 font-semibold uppercase text-[9px] tracking-wider">${group.columns.map(col => `<th style="width: ${col.width||130}px; min-width: 70px;" draggable="true" ondragstart="onColDragStart(event, ${group.id}, '${col.id}')" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event, ${group.id}, '${col.id}')" class="p-2.5 pl-3 group/col relative select-none draggable-header"><div class="flex items-center justify-between gap-1 overflow-hidden"><div class="flex items-center gap-1.5 overflow-hidden"><i data-lucide="${col.icon || 'file-text'}" class="w-3.5 h-3.5 text-slate-500 shrink-0"></i><span onclick="editColumnNameInline(event, ${group.id}, '${col.id}')" class="truncate text-slate-600 font-bold cursor-pointer hover:text-blue-600">${col.name}</span></div><div class="flex items-center gap-0.5 opacity-0 group-hover/col:opacity-100 transition-opacity">${col.type === 'tags' ? `<button onclick="openStatusOptionsEditor(${group.id}, '${col.id}')" class="text-blue-500 p-0.5"><i data-lucide="palette" class="w-3 h-3"></i></button>` : ''}${col.deletable !== false ? `<button onclick="deleteColumnFromGroup(${group.id}, '${col.id}')" class="text-rose-400 p-0.5"><i data-lucide="x" class="w-3 h-3"></i></button>` : ''}</div></div><div class="resizer" onmousedown="initColumnResizer(event, ${group.id}, '${col.id}')"></div></th>`).join('')}<th class="p-2.5 text-center w-20"><button onclick="openAddColumnModalForGroup(${group.id})" class="p-0.5 rounded bg-slate-100 text-slate-500"><i data-lucide="plus" class="w-3 h-3"></i></button></th></tr></thead><tbody class="divide-y divide-slate-100/80">${group.tasks.map(t => `<tr class="hover:bg-slate-50/60 transition-colors">${group.columns.map(col => { const val = t[col.id]; if (col.type === 'text') return `<td class="p-1.5 px-2"><input type="text" value="${val||''}" onchange="updateCellValue(${group.id}, ${t.id}, '${col.id}', this.value)" class="cell-input font-medium text-slate-700 text-xs"></td>`; if (col.type === 'whatsapp') { const num = String(val||'').replace(/\D/g, ''); const fnum = num.length>=10 && !num.startsWith('55') ? '55'+num : num; return `<td class="p-1.5 px-2"><div class="flex items-center gap-1.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-1">${fnum ? `<a href="https://wa.me/${fnum}" target="_blank" class="bg-emerald-500 text-white p-1.5 rounded-lg"><svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg></a>` : ''}<input type="text" value="${val||''}" onchange="updateCellValue(${group.id}, ${t.id}, '${col.id}', this.value)" class="cell-input font-bold text-emerald-800 text-xs flex-1" placeholder="(21) 99999-8888"></div></td>`; } if (col.type === 'currency') return `<td class="p-1.5 px-2"><div class="flex items-center gap-1 bg-emerald-50/40 border border-emerald-200/60 rounded-md px-2 py-0.5"><span class="text-emerald-700 font-bold text-[11px]">R$</span><input type="number" step="0.01" value="${val!==undefined?val:0}" onchange="updateCellValue(${group.id}, ${t.id}, '${col.id}', parseFloat(this.value)||0)" class="w-full bg-transparent font-semibold text-emerald-700 text-xs"></div></td>`; if (col.type === 'tags') { const opts = normalizeOptions(col.options), cur = val || opts[0]?.name || '---', found = opts.find(o=>o.name===cur)||opts[0]||{name:cur, color:'#3b82f6'}; return `<td class="p-2 text-center"><button onclick="openStatusPopover(event, ${group.id}, ${t.id}, '${col.id}')" style="background-color: ${found.color};" class="status-badge px-2.5 py-1 font-semibold text-white rounded-md text-[10px] inline-flex items-center gap-1"><span>${found.name}</span><i data-lucide="chevron-down" class="w-3 h-3"></i></button></td>`; } if (col.type === 'date') return `<td class="p-1.5 px-2"><input type="date" value="${val||''}" onchange="updateCellValue(${group.id}, ${t.id}, '${col.id}', this.value)" class="cell-input text-slate-600 text-xs"></td>`; return `<td class="p-2">${val||'---'}</td>`; }).join('')}<td class="p-2 text-center"><div class="flex items-center justify-center gap-1"><div class="relative group/move" title="Mover para outro projeto/pasta"><select onchange="moveTaskToGroup(${group.id},${t.id}, this.value)" class="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"><option value="" disabled selected>Mover...</option>${allDestOptions}</select><button class="p-1 text-slate-400 hover:text-amber-600"><i data-lucide="folder-output" class="w-3.5 h-3.5"></i></button></div><button onclick="deleteTask(${group.id},${t.id})" title="Excluir atividade (x)" class="text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md p-1 transition-all"><i data-lucide="x" class="w-4 h-4"></i></button></div></td></tr>`).join('')}</tbody></table></div></div>`; }); }
+
+    document.querySelector('main')?.addEventListener('scroll', closeStatusPopover);
+    window.addEventListener('DOMContentLoaded', () => render());
+  </script>
+</body>
+</html>
